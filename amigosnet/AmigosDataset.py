@@ -1,12 +1,9 @@
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import cv2
-import torch
 import pandas as pd
 import os
 import numpy as np
-import torchvision.transforms.functional as F
 from numpy import random
-import argparse
 
 
 class SubsetAdapted(Dataset):
@@ -45,24 +42,34 @@ class AmigosDatasetAdapted(Dataset):
     """
     def __init__(self, csv, root_dir, hog, reduced_dataset=False):
         self.labels = pd.read_csv(
-            csv, index_col=[0,1,6], converters={'targets': eval}
+            csv, index_col=[0, 1, 6], converters={'targets': eval}
         )
         self.root_dir = root_dir
 
-        if reduced_dataset == True:
-            self.image_dir = os.path.join(self.root_dir, 'ImagesOversamplesecondattempt')
+        if reduced_dataset is True:
+            self.image_dir = os.path.join(
+                self.root_dir, 'ImagesOversamplesecondattempt'
+                )
         else:
             self.image_dir = os.path.join(self.root_dir, 'Images')
 
         self.hog = hog
-        if self.hog == True:
+        if self.hog is True:
 
             self.adapted_dir = os.path.join(root_dir, "hog")
-            self.map = {idx: file for idx, file in enumerate(os.listdir(self.image_dir))}
+            self.map = {
+                idx: file for idx, file in enumerate(
+                    os.listdir(self.image_dir)
+                    )
+                }
             self.len = len(self.map.keys())
         else:
             self.adapted_dir = os.path.join(root_dir, "output")
-            self.map = {idx: file for idx, file in enumerate(os.listdir(self.image_dir))}
+            self.map = {
+                idx: file for idx, file in enumerate(
+                    os.listdir(self.image_dir)
+                    )
+                }
             self.len = len(self.map.keys())
 
     def __len__(self):
@@ -81,18 +88,22 @@ class AmigosDatasetAdapted(Dataset):
         arous = self.labels.loc[(i1, str(i2), i3), 'arousal']
         valen = self.labels.loc[(i1, str(i2), i3), 'valence']
 
-        if self.hog == True:
+        if self.hog is True:
             additional_name = file_name.split(".")[0] + '.npy'
-            additional_feature = np.load(os.path.join(self.adapted_dir, additional_name))
+            additional_feature = np.load(
+                os.path.join(self.adapted_dir, additional_name)
+                )
         else:
             additional_name = file_name.split(".")[0]
-            additional_feature = np.loadtxt(os.path.join(self.adapted_dir, additional_name))
+            additional_feature = np.loadtxt(
+                os.path.join(self.adapted_dir, additional_name)
+                )
 
-        return (image, additional_feature, np.array([arous, valen]) )
+        return (image, additional_feature, np.array([arous, valen]))
 
 
 class AmigosDataset(Dataset):
-   r"""
+    r"""
     lazy loading dataset for the non adapted model
     Arguments:
         csv (Dataset): The model targets
@@ -101,18 +112,22 @@ class AmigosDataset(Dataset):
     """
     def __init__(self, csv, root_dir, reduced_dataset):
         self.labels = pd.read_csv(
-            csv, index_col=[0,1,6], converters={'targets': eval}
+            csv, index_col=[0, 1, 6], converters={'targets': eval}
         )
         self.root_dir = root_dir
-        if reduced_dataset:
-            print ('using reduced dataset')
-            self.image_dir = os.path.join(root_dir, 'ImagesOversamplesecondattempt')
-        else:
-            print ('Not using reduced dataset')
 
+        if reduced_dataset:
+            print('using reduced dataset')
+            self.image_dir = os.path.join(
+                root_dir, 'ImagesOversamplesecondattempt'
+                )
+        else:
+            print('Not using reduced dataset')
             self.image_dir = os.path.join(root_dir, 'Images')
 
-        self.map = {idx:file for idx, file in enumerate(os.listdir(self.image_dir))}
+        self.map = {
+            idx: file for idx, file in enumerate(os.listdir(self.image_dir))
+            }
         self.len = len(self.map.keys())
 
     def __len__(self):
@@ -134,7 +149,7 @@ class AmigosDataset(Dataset):
 
 
 class AmigosDatasetInterSubject(Dataset):
-   r"""
+    r"""
     lazy loading dataset for the inter subject validation  model
 
     Arguments:
@@ -145,18 +160,20 @@ class AmigosDatasetInterSubject(Dataset):
     """
     def __init__(self, csv, root_dir, subject, reduced_dataset):
         self.labels = pd.read_csv(
-            csv, index_col=[0,1,6], converters={'targets': eval}
+            csv, index_col=[0, 1, 6], converters={'targets': eval}
         )
         self.root_dir = root_dir
 
         if reduced_dataset:
-            self.image_dir = os.path.join(root_dir, 'ImagesOversamplesecondattempt')
+            self.image_dir = os.path.join(
+                root_dir, 'ImagesOversamplesecondattempt'
+                )
         else:
             self.image_dir = os.path.join(root_dir, 'Images')
 
         self.map = {
-            idx : file for idx, file in enumerate(os.listdir(self.image_dir)) if
-            int(file.split(",")[0]) == subject
+            idx: file for idx, file in enumerate(os.listdir(self.image_dir))
+            if int(file.split(",")[0]) == subject
         }
         self.len = len(self.map.keys())
 
@@ -178,7 +195,7 @@ class AmigosDatasetInterSubject(Dataset):
 
 
 class AmigosDatasetInterSubjectAdapted(Dataset):
-   r"""
+    r"""
     lazy loading dataset for the adapted inter subject validation  model
 
     Arguments:
@@ -190,18 +207,22 @@ class AmigosDatasetInterSubjectAdapted(Dataset):
     """
     def __init__(self, csv, root_dir, subject, hog, reduced_dataset):
         self.labels = pd.read_csv(
-            csv, index_col=[0,1,6], converters={'targets': eval}
+            csv, index_col=[0, 1, 6], converters={'targets': eval}
         )
         self.root_dir = root_dir
         self.hog = hog
-        if reduced_dataset == True:
-            self.image_dir = os.path.join(root_dir, 'ImagesOversamplesecondattempt')
+        if reduced_dataset is True:
+            self.image_dir = os.path.join(
+                root_dir, 'ImagesOversamplesecondattempt'
+                )
 
         else:
             self.image_dir = os.path.join(root_dir, 'Images')
-        self.map = {idx: file for idx, file in enumerate(os.listdir(self.image_dir))}
+        self.map = {
+            idx: file for idx, file in enumerate(os.listdir(self.image_dir))
+                }
 
-        if self.hog == True:
+        if self.hog is True:
             self.adapted_dir = os.path.join(root_dir, "hog")
             self.len = len(self.map.keys())
         else:
@@ -223,15 +244,17 @@ class AmigosDatasetInterSubjectAdapted(Dataset):
         arous = self.labels.loc[(i1, str(i2), i3), 'arousal']
         valen = self.labels.loc[(i1, str(i2), i3), 'valence']
 
-
-        if self.hog == True:
+        if self.hog is True:
             addit_name = file_name.split(".")[0] + ".npy"
-            additional_feature = np.load(os.path.join(self.adapted_dir, addit_name))
+            additional_feature = np.load(
+                os.path.join(self.adapted_dir, addit_name)
+                )
         else:
             addit_name = file_name.split(".")[0]
-            additional_feature = np.loadtxt(os.path.join(self.adapted_dir, addit_name))
-        return (image, additional_feature, np.array([arous, valen]) )
-
+            additional_feature = np.loadtxt(
+                os.path.join(self.adapted_dir, addit_name)
+                )
+        return (image, additional_feature, np.array([arous, valen]))
 
 
 class Subset(Dataset):
@@ -286,7 +309,7 @@ def run_epoch(net, loader, optimizer, criterion):
         loss.backward()
         optimizer.step()
         epoch_loss = np.append(epoch_loss, loss.data.item())
-        # print (f"batch {i} | running_loss{np.mean(epoch_loss):.4f}")
+        # print(f"batch {i} | running_loss{np.mean(epoch_loss):.4f}")
 
     return net
 
@@ -302,7 +325,7 @@ def eval_model(net, loader, criterion):
     """
     net.eval()
     epoch_loss = np.array([], dtype=np.float32)
-    print ('evaluating validation set')
+    print('evaluating validation set')
 
     for i, data in enumerate(loader, 1):
         images = data[0].cuda().float()
@@ -329,5 +352,4 @@ class RandomMirror(object):
         _, width, _ = image.shape
         if random.randint(2):
             image = image[:, ::-1]
-
         return image.copy()

@@ -1,19 +1,22 @@
-import pandas as pd
-import subprocess
-from AmigosDataset import *
-from torchvision import datasets, transforms
+from AmigosDataset import (
+    eval_model, run_epoch, Subset, SubsetAdapted, AmigosDataset,
+    AmigosDatasetAdapted
+    )
+from torchvision import transforms
 import os
+import torch
 from torch import optim
 import numpy as np
-from scipy.io import loadmat
-from torch.utils.data import Dataset, DataLoader
-from existing_model.models.vgg_face import *
+from torch.utils.data import DataLoader
+from existing_model.models.vgg_face import (
+    initialise_model_affect, RandomMirror, initialise_model_affect_adapted,
+    )
 from sklearn.model_selection import LeaveOneGroupOut
 import time
 import json
-import copy, random
+import torch.nn as nn
+import copy
 import argparse
-import time
 
 # command line arguments
 parser = argparse.ArgumentParser("Transform")
@@ -28,10 +31,10 @@ parser.set_defaults(affectnet=False)
 args = parser.parse_args()
 
 
-print (f"adapted: {args.adapted}")
-print (f"reduced: {args.reduced}")
-print (f"hog: {args.hog}")
-print (f"affectnet: {args.affectnet}")
+print(f"adapted: {args.adapted}")
+print(f"reduced: {args.reduced}")
+print(f"hog: {args.hog}")
+print(f"affectnet: {args.affectnet}")
 
 
 time.sleep(3)
@@ -50,8 +53,8 @@ size = {
 }
 
 
-if args.adapted == True:
-    print ('using adapted dataset')
+if args.adapted is True:
+    print('using adapted dataset')
     data = AmigosDatasetAdapted(
         "targets.csv",
         "/homes/wr301/project_storage/datasets/Amigossmall",
@@ -60,13 +63,13 @@ if args.adapted == True:
          )
 
 else:
-    print ('using not adapted dataset')
+    print('using not adapted dataset')
 
     data = AmigosDataset(
         "targets.csv",
-         "/homes/wr301/project_storage/datasets/Amigossmall",
-         args.reduced
-         )
+        "/homes/wr301/project_storage/datasets/Amigossmall",
+        args.reduced
+        )
 
 groups = np.array([int(file.split(',')[0]) for file in data.map.values()])
 # generate all possible participant ids
@@ -100,10 +103,13 @@ lr = 0.001
 
 # cross validate across all participants
 for participant in participants:
-    if args.adapted == True:
-        save_dir = f"loso,adapted-{args.adapted},reducedsecond-{args.reduced},hog-{args.hog},affect-{args.affectnet},{lr},{momentum},{weight_decay}"
+    if args.adapted is True:
+        save_dir = f"""loso,adapted-{args.adapted},reducedsecond-
+        {args.reduced},hog-{args.hog},affect-{args.affectnet},{lr},{momentum},
+        {weight_decay}"""
     else:
-        save_dir = f"loso,adapted-{args.adapted},reducedsecond-{args.reduced},affect-{args.affectnet},{lr},{momentum},{weight_decay}"
+        save_dir = f"""loso,adapted-{args.adapted},reducedsecond-{args.reduced}
+        ,affect-{args.affectnet},{lr},{momentum},{weight_decay}"""
 
     # if we haven't already done this participant
     if not os.path.exists(f'{save_dir}/{participant}.json'):
@@ -114,21 +120,24 @@ for participant in participants:
         split_start = time.time()
         print(args.adapted)
 
-        if args.adapted == True:
-            print ('initialise_model_affect_adapted')
+        if args.adapted is True:
+            print('initialise_model_affect_adapted')
             additional_size = size[args.hog]
-            net = initialise_model_affect_adapted(file_path, additional_size, args.affectnet)
+            net = initialise_model_affect_adapted(
+                file_path, additional_size, args.affectnet
+                )
             trainSet = SubsetAdapted(data, train_idxs, transform=train_trans)
             testSet = SubsetAdapted(data, test_indxs, transform=val_trans)
 
-        elif not (args.adapted == True):
-            print ('initialise_model_affect')
+        elif args.adapted is not True:
+            print('initialise_model_affect')
             net = initialise_model_affect(file_path, args.affectnet)
             trainSet = Subset(data, train_idxs, transform=train_trans)
             testSet = Subset(data, test_indxs, transform=val_trans)
 
         optimizer = optim.SGD(
-            net.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay
+            net.parameters(), lr=lr, momentum=momentum,
+            weight_decay=weight_decay
             )
         trainloader = DataLoader(
             trainSet, batch_size=40, shuffle=True, sampler=None,
@@ -147,40 +156,41 @@ for participant in participants:
         print(best_val_score)
         running_count = 0
 
-        while cont == True:
+        while cont is True:
             epoch += 1
             print(epoch)
 
             net = run_epoch(net, trainloader, optimizer, criterion)
             eval_score = eval_model(net, testloader, criterion)
-            print (eval_score)
-            if eval_score > best_val_score :
+            print(eval_score)
+            if eval_score > best_val_score:
                 if running_count == threshold:
                     cont = False
-                    print (f'ended on epoch {epoch}')
+                    print(f'ended on epoch {epoch}')
                 else:
                     running_count += 1
             else:
                 best_val_score = eval_score
                 best_model = copy.deepcopy(net)
-                # running_count = 0
 
-        ### the below code is used to save model results to json format
-        ### these results are analysed using jupyter notebooks later on
+        # the below code is used to save model results to json format
+        # these results are analysed using jupyter notebooks later on
         best_model.eval()
         epoch_loss = np.array([], dtype=np.float32)
         targets = []
         predicted = []
-        if not (args.adapted == True):
+        if args.adapted is not True:
             for i, testdata in enumerate(testloader, 1):
-                inputs, labels = testdata[0].cuda().float(), testdata[1].cuda().float()
+                inputs, labels = (
+                    testdata[0].cuda().float(), testdata[1].cuda().float()
+                    )
                 outputs = best_model(inputs)
                 targets.append(labels.detach().cpu().numpy())
                 predicted.append(outputs.detach().cpu().numpy())
         else:
             for i, testdata in enumerate(testloader, 1):
-                images  = testdata[0].cuda().float()
-                additional  = testdata[1].cuda().float()
+                images = testdata[0].cuda().float()
+                additional = testdata[1].cuda().float()
                 labels = testdata[2].cuda().float()
 
                 outputs = best_model(images, additional)
@@ -203,13 +213,12 @@ for participant in participants:
             "split_time_hrs": (time.time() - split_start) / (60 * 60)
             }
 
-
         if not os.path.exists(save_dir):
             os.mkdir(save_dir)
 
         with open(f'{save_dir}/{participant}.json', 'w') as fp:
             json.dump(data_to_dump, fp)
     else:
-        print (f"Skipping participant {participant}")
+        print(f"Skipping participant {participant}")
         time.sleep(0.5)
         continue

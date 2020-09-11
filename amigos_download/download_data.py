@@ -1,12 +1,10 @@
-#!/usr/bin/env python
-# coding: utf-8
+import os
+import subprocess
+import logging
+import json
+from detect import extract_folder
 
-
-import os, subprocess, logging, zipfile
-from shutil import rmtree
-from detect import *
-
-logging.basicConfig(level = logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 
 class downloader_and_unzipper:
@@ -20,14 +18,15 @@ class downloader_and_unzipper:
 
     def gen_links(downloader):
         link_dict = {}
-        for a_number in range(1 ,21):
+        for a_number in range(1, 21):
 
             number_str = str(a_number)
             zero_filled_number = number_str.zfill(2)
 
             link_dict[
-                "wget http://www.eecs.qmul.ac.uk/mmv/datasets/amigos/data/Exp1_P"
-                + zero_filled_number + "_face.zip" f" --user {downloader.username} --password={downloader.password}"
+                    f"""wget http://www.eecs.qmul.ac.uk/mmv/datasets/amigos/
+                    data/Exp1_P{zero_filled_number}_face.zip --user
+                    {downloader.username} --password={downloader.password}"""
                 ] = "Exp1_P" + zero_filled_number + "_face.zip"
         return link_dict
 
@@ -46,20 +45,29 @@ class downloader_and_unzipper:
             os.remove(filename)
             logging.info("converting videos in: " + unzipped_file)
 
-
             for mov_video in os.listdir(unzipped_file):
                 start_vid_name = os.path.join(unzipped_file, mov_video)
-                end_vid_name = os.path.join(unzipped_file, mov_video.split(".")[0] + ".mp4")
+                end_vid_name = os.path.join(
+                    unzipped_file, mov_video.split(".")[0] + ".mp4"
+                    )
 
-                cmd = f"ffmpeg -r 25 -i {start_vid_name} -vcodec h264 -acodec mp2 {end_vid_name}"
+                cmd = (
+                    f"""ffmpeg -r 25 -i {start_vid_name} -vcodec h264
+                    -acodec mp2 {end_vid_name}"""
+                    )
                 logging.info(cmd)
                 subprocess.call(cmd, shell=True)
                 os.remove(start_vid_name)
             os.mkdir(frame_output_file)
-            subprocess.call(f"python AMIGOS_CODE/face_extractor/extract.py --d {unzipped_file} --o {frame_output_file}", shell=True)
-            print (os.listdir(frame_output_file))
+            subprocess.call(
+                f"""python AMIGOS_CODE/face_extractor/extract.py --d
+                {unzipped_file} --o {frame_output_file}""",
+                shell=True
+                )
+            print(os.listdir(frame_output_file))
             extract_folder(frame_output_file)
             subprocess.call(f"rm -rf {unzipped_file}", shell=True)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     downloader_and_unzipper().download_and_process()

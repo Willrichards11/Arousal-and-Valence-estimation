@@ -1,12 +1,5 @@
-# -*- coding: utf-8 -*-
-
-import cv2, os
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchfile
-import sys
-
 
 
 class VGGnet(nn.Module):
@@ -68,11 +61,9 @@ class VGGnet(nn.Module):
         self.num_heads = 2
         self.heads = nn.ModuleDict(
             {
-                'fc_3': nn.Linear(4096, self.num_heads)#,
+                'fc_3': nn.Linear(4096, self.num_heads)
             }
         )
-
-
 
     def forward(self, x):
 
@@ -157,10 +148,9 @@ class VGGnetAdapted(nn.Module):
         self.num_heads = 2
         self.heads = nn.ModuleDict(
             {
-                'fc_3': nn.Linear(4096, self.num_heads)#,
+                'fc_3': nn.Linear(4096, self.num_heads)
             }
         )
-
 
     def forward(self, x, additional_feature):
 
@@ -192,8 +182,10 @@ def initialise_model_affect_adapted(file_path, feature_size, affectnet):
     # net = model.cuda()
     model.to(device)
 
-    if affectnet == True:
-        state = torch.load(file_path,  map_location=lambda storage, loc: storage)
+    if affectnet is True:
+        state = torch.load(
+            file_path,  map_location=lambda storage, loc: storage
+            )
         del state['fc_2.fc_2.weight']
         del state['fc_2.fc_2.bias']
         model.load_state_dict(state, strict=False)
@@ -207,9 +199,10 @@ def initialise_model_affect(file_path, affectnet):
     # model = torch.nn.DataParallel(model, device_ids=[1])
     # net = model.cuda()
     model.to(device)
-    if affectnet == True:
-        state = torch.load(file_path,  map_location=lambda storage, loc: storage)
+    if affectnet is True:
+        state = torch.load(
+            file_path,  map_location=lambda storage, loc: storage
+            )
         model.load_state_dict(state)
     model.train()
     return model
-

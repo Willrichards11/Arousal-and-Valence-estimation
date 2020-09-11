@@ -1,18 +1,23 @@
 import pandas as pd
-import subprocess
-from AmigosDataset import *
-from torchvision import datasets, transforms
+from AmigosDataset import (
+    eval_model, run_epoch, Subset, AmigosDatasetInterSubjectAdapted,
+    AmigosDatasetInterSubject, SubsetAdapted
+    )
+from torchvision import transforms
 import os
 from torch import optim
+import torch
 import numpy as np
-from scipy.io import loadmat
-from torch.utils.data import Dataset, DataLoader
-from existing_model.models.vgg_face import *
-from sklearn.model_selection import LeaveOneGroupOut
+from torch.utils.data import DataLoader
+from existing_model.models.vgg_face import (
+    initialise_model_affect, RandomMirror, initialise_model_affect_adapted,
+    )
 import time
 import json
-import copy, random
+import copy
 import argparse
+import torch.nn as nn
+
 
 parser = argparse.ArgumentParser("Transform")
 parser.add_argument('--adapted', dest='adapted', action='store_true')
@@ -25,10 +30,10 @@ parser.add_argument('--affectnet', dest='affectnet', action='store_true')
 parser.set_defaults(affectnet=False)
 args = parser.parse_args()
 
-print (f"adapted: {args.adapted}")
-print (f"reduced: {args.reduced}")
-print (f"hog: {args.hog}")
-print (f"affectnet: {args.affectnet}")
+print(f"adapted: {args.adapted}")
+print(f"reduced: {args.reduced}")
+print(f"hog: {args.hog}")
+print(f"affectnet: {args.affectnet}")
 
 time.sleep(3)
 
@@ -71,25 +76,31 @@ participants = list(participants)
 
 for participant in participants:
 
-    if args.adapted == True:
-        save_dir = f"inter,adapted-{args.adapted},reducedsecond-{args.reduced},hog-{args.hog},affect-{args.affectnet},{lr},{momentum},{weight_decay}"
+    if args.adapted is True:
+        save_dir = f"inter,adapted-{args.adapted},reducedsecond-{args.reduced}\
+        ,hog-{args.hog},affect-{args.affectnet},{lr},{momentum},{weight_decay}"
     else:
-        save_dir = f"inter,adapted-{args.adapted},reducedsecond-{args.reduced},affect-{args.affectnet},{lr},{momentum},{weight_decay}"
+        save_dir = f"inter,adapted-{args.adapted},reducedsecond-{args.reduced}\
+        ,affect-{args.affectnet},{lr},{momentum},{weight_decay}"
 
     if not os.path.exists(f'{save_dir}/{participant}.json'):
 
         participant = int(participant)
-        if args.reduced == True:
+        if args.reduced is True:
             participant_videos = {
-                idx : file for idx, file in enumerate(
-                    os.listdir("/homes/wr301/project_storage/datasets/Amigossmall/ImagesOversamplesecondattempt")
+                idx: file for idx, file in enumerate(
+                    os.listdir(
+                        "/homes/wr301/project_storage/datasets/Amigossmall/\
+                        ImagesOversamplesecondattempt")
                     )
                 if int(file.split(",")[0]) == participant
             }
         else:
             participant_videos = {
-                idx : file for idx, file in enumerate(
-                    os.listdir("/homes/wr301/project_storage/datasets/Amigossmall/Images")
+                idx: file for idx, file in enumerate(
+                    os.listdir(
+                        "/homes/wr301/project_storage/datasets/\
+                        Amigossmall/Images")
                     )
                 if int(file.split(",")[0]) == participant
             }
@@ -98,47 +109,50 @@ for participant in participants:
             participant_videos, index=["file"]
             ).T
         mapping_df['video'] = mapping_df["file"].apply(
-            lambda x : int(x.split(",")[1])
+                lambda x: int(x.split(",")[1])
             )
+
         if args.adapted:
             data = AmigosDatasetInterSubjectAdapted(
                 "targets.csv",
-                 "/homes/wr301/project_storage/datasets/Amigossmall",
-                participant,
-                args.hog,
-                args.reduced
+                "/homes/wr301/project_storage/datasets/Amigossmall",
+                participant, args.hog, args.reduced
              )
         else:
             data = AmigosDatasetInterSubject(
                 "targets.csv",
-                 "/homes/wr301/project_storage/datasets/Amigossmall",
-                participant,
-                args.reduced
+                "/homes/wr301/project_storage/datasets/Amigossmall",
+                participant, args.reduced
              )
         for split, video in enumerate(set(mapping_df.video.values)):
             video = int(video)
-            print (f"excluding video: {video}")
+            print(f"excluding video: {video}")
             print(split, video)
             train_idxs = mapping_df[mapping_df.video != video].index.values
             test_idxs = mapping_df[mapping_df.video == video].index.values
 
             split_start = time.time()
 
-            if args.adapted == True:
-                print ('initialise_model_affect_adapted')
+            if args.adapted is True:
+                print('initialise_model_affect_adapted')
                 additional_size = size[args.hog]
-                net = initialise_model_affect_adapted(file_path, additional_size, args.affectnet)
-                trainSet = SubsetAdapted(data, train_idxs, transform=train_trans)
+                net = initialise_model_affect_adapted(
+                    file_path, additional_size, args.affectnet
+                    )
+                trainSet = SubsetAdapted(
+                    data, train_idxs, transform=train_trans
+                    )
                 testSet = SubsetAdapted(data, test_idxs, transform=val_trans)
 
-            elif not (args.adapted == True):
-                print ('initialise_model_affect')
+            elif not (args.adapted is True):
+                print('initialise_model_affect')
                 net = initialise_model_affect(file_path, args.affectnet)
                 trainSet = Subset(data, train_idxs, transform=train_trans)
                 testSet = Subset(data, test_idxs, transform=val_trans)
 
             optimizer = optim.SGD(
-                net.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay
+                net.parameters(), lr=lr, momentum=momentum,
+                weight_decay=weight_decay
                 )
 
             trainloader = DataLoader(
@@ -158,17 +172,17 @@ for participant in participants:
             print(best_val_score)
             running_count = 0
 
-            while cont == True:
+            while cont is True:
                 epoch += 1
                 print(epoch)
 
                 net = run_epoch(net, trainloader, optimizer, criterion)
                 eval_score = eval_model(net, testloader, criterion)
-                print (eval_score)
-                if eval_score > best_val_score :
+                print(eval_score)
+                if eval_score > best_val_score:
                     if running_count == threshold:
                         cont = False
-                        print (f'ended on epoch {epoch}')
+                        print(f'ended on epoch {epoch}')
                     else:
                         running_count += 1
                 else:
@@ -181,16 +195,18 @@ for participant in participants:
             targets = []
             predicted = []
 
-            if not (args.adapted == True):
+            if args.adapted is not True:
                 for i, testdata in enumerate(testloader, 1):
-                    inputs, labels = testdata[0].cuda().float(), testdata[1].cuda().float()
+                    inputs, labels = (
+                        testdata[0].cuda().float(), testdata[1].cuda().float()
+                        )
                     outputs = best_model(inputs)
                     targets.append(labels.detach().cpu().numpy())
                     predicted.append(outputs.detach().cpu().numpy())
             else:
                 for i, testdata in enumerate(testloader, 1):
-                    images  = testdata[0].cuda().float()
-                    additional  = testdata[1].cuda().float()
+                    images = testdata[0].cuda().float()
+                    additional = testdata[1].cuda().float()
                     labels = testdata[2].cuda().float()
 
                     outputs = best_model(images, additional)
@@ -213,26 +229,28 @@ for participant in participants:
                 "actual_arousal": actual_arousal.tolist(),
                 "predicted_valence": predicted_valence.tolist(),
                 "actual_valence": actual_valence.tolist(),
-                "cor_arousal": np.corrcoef(predicted_arousal, actual_arousal).tolist(),
-                "cor_valence": np.corrcoef(predicted_valence, actual_valence).tolist(),
+                "cor_arousal": np.corrcoef(
+                    predicted_arousal, actual_arousal
+                    ).tolist(),
+                "cor_valence": np.corrcoef(
+                    predicted_valence, actual_valence
+                    ).tolist(),
                 "err_arousal": err_arousal.tolist(),
                 "err_valence": err_valence.tolist(),
                 "split_time_hrs": (time.time() - split_start) / (60 * 60)
                 }
 
-
             if not os.path.exists(save_dir):
                 os.mkdir(save_dir)
 
-            if args.adapted == True:
+            if args.adapted is True:
                 with open(f'{save_dir}/{participant},{video}.json', 'w') as fp:
                     json.dump(data_to_dump, fp)
 
-            if not args.adapted == True:
+            if args.adapted is not True:
                 with open(f'{save_dir}/{participant},{video}.json', 'w') as fp:
                     json.dump(data_to_dump, fp)
     else:
-        print (f"Skipping participant {participant}")
+        print(f"Skipping participant {participant}")
         time.sleep(0.5)
         continue
-
