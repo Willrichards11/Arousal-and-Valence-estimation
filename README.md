@@ -9,7 +9,7 @@ The code is broken up in to 3 directories:
 
 -Amigosdownload: the code used to download and process the raw amigos dataset to produce the dataset. The code for facial extraction and affect net pre training was removed to comply with university code rules.
 
-- Jupiter notebooks: the Jupiter notebooks used to analyse final results
+- Jupyter notebooks: the Jupyter notebooks used to analyse final results
 
 
 
