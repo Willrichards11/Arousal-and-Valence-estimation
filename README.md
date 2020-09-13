@@ -1,6 +1,6 @@
 Read me for MSc Project - William Richards
 
-NOTE: THE CODE WILL NOT RUN AS IT REQUIRES a pretained affect net model and the processing and storage of many gigabytes of data. However, model results are printed in the all analysis notebook.
+NOTE: THE CODE WILL NOT RUN AS IT REQUIRES a pretained affect net model and the processing and storage of many gigabytes of data. However, model results are printed in the jupyter notebooks.
 
 
 The code is broken up in to 3 directories:
@@ -45,5 +45,4 @@ all_analysis: notebook used to calculate model scores for each loso/intersubject
 split_analysis: example of histogram and plot of model emotion reproduction over time
 
 
-ePortfolio: an xlm export of the eportfolio as of 01/09/2020
 
